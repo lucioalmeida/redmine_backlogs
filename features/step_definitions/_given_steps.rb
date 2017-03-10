@@ -60,7 +60,7 @@ Then /^on ([0-9]{4}-[0-9]{2}-[0-9]{2})$/ do |date|
 end
 Then /^after (the current )?sprint(.*)$/ do |current, name|
   raise "Improperly phrased" if (current == '' && name == '') || (current != '' && name != '')
-  sprint = current == '' ? RbSprint.find_by_name(name) : current_sprint
+  sprint = current == '' ? RbSprint.where(name: name).first : current_sprint
   set_now(sprint.effective_date + 1, :msg => "after sprint #{sprint.name}")
 end
 
@@ -91,10 +91,10 @@ end
 Given /^I set the (.+) of the story to (.+)$/ do |attribute, value|
   if attribute=="tracker"
     attribute="tracker_id"
-    value = Tracker.find(:first, :conditions => ["name=?", value]).id
+    value = Tracker.where("name=?", value).id
   elsif attribute=="status"
     attribute="status_id"
-    value = IssueStatus.find(:first, :conditions => ["name=?", value]).id
+    value = IssueStatus.where("name=?", value).first.id
   end
   @story_params[attribute] = value
 end
@@ -103,17 +103,17 @@ Given /^I set the (.+) of the task to (.+)$/ do |attribute, value|
   value = '' if value == 'an empty string'
   if attribute=="assigned_to"
     attribute="assigned_to_id"
-    value = User.find(:first, :conditions => ["login=?", value]).id
+    value = User.where("login=?", value).first.id
   end
   @task_params[attribute] = value
 end
 
 Given /^I add the tracker (.+) to the story trackers$/ do |tracker|
-  tracker_id = Tracker.find(:first, :conditions=>{:name => tracker}).id
+  tracker_id = Tracker.where(:name => tracker).first.id
   @project.update_attribute :tracker_ids, (@project.tracker_ids << tracker_id)
   Backlogs.setting[:story_trackers] << tracker_id
 end
-  
+
 Given /^I set the default story tracker to (.+)$/ do |tracker|
   t = get_tracker(tracker)
   Backlogs.setting[:default_story_tracker] = t.id.to_s
@@ -124,12 +124,12 @@ Given /^I want to create a story$/ do
 end
 
 Given /^I want to create a task for (.+)$/ do |story_subject|
-  story = RbStory.find(:first, :conditions => ["subject=?", story_subject])
+  story = RbStory.where("subject=?", story_subject).first
   @task_params = initialize_task_params(story.id)
 end
 
 Given /^I want to create an impediment for (.+)$/ do |sprint_subject|
-  sprint = RbSprint.find(:first, :conditions => { :name => sprint_subject })
+  sprint = RbSprint.where(:name => sprint_subject).first
   @impediment_params = initialize_impediment_params(:project_id => sprint.project_id, :fixed_version_id => sprint.id)
 end
 
@@ -138,25 +138,25 @@ Given /^I want to create a sprint$/ do
 end
 
 Given /^I want to edit the task named (.+)$/ do |task_subject|
-  task = RbTask.find(:first, :conditions => { :subject => task_subject })
+  task = RbTask.where(:subject => task_subject).first
   task.should_not be_nil
   @task_params = HashWithIndifferentAccess.new(task.attributes)
 end
 
 Given /^I want to edit the impediment named (.+)$/ do |impediment_subject|
-  impediment = RbTask.find(:first, :conditions => { :subject => impediment_subject })
+  impediment = RbTask.where(:subject => impediment_subject).first
   impediment.should_not be_nil
   @impediment_params = HashWithIndifferentAccess.new(impediment.attributes)
 end
 
 Given /^I want to edit the sprint named (.+)$/ do |name|
-  sprint = RbSprint.find(:first, :conditions => ["name=?", name])
+  sprint = RbSprint.where("name=?", name).first
   sprint.should_not be_nil
   @sprint_params = HashWithIndifferentAccess.new(sprint.attributes)
 end
 
 Given /^I want to indicate that the impediment blocks (.+)$/ do |blocks_csv|
-  blocks_csv = RbStory.find(:all, :conditions => { :subject => blocks_csv.split(', ') }).map{ |s| s.id }.join(',')
+  blocks_csv = RbStory.where(:subject => blocks_csv.split(', ')).map{ |s| s.id }.join(',')
   @impediment_params[:blocks] = blocks_csv
 end
 
@@ -171,7 +171,7 @@ Given /^I want to set the (.+) of the impediment to (.+)$/ do |attribute, value|
 end
 
 Given /^I want to edit the story with subject (.+)$/ do |subject|
-  @story = RbStory.find(:first, :conditions => ["subject=?", subject])
+  @story = RbStory.where("subject=?", subject).first
   @story.should_not be_nil
   @story_params = HashWithIndifferentAccess.new(@story.attributes)
 end
@@ -191,10 +191,10 @@ Given /^the (.*) project has the backlogs plugin enabled$/ do |project_id|
   @project.enable_module!('backlogs')
 
   # Configure the story and task trackers
-  story_trackers = [(Tracker.find_by_name('Story') || Tracker.create!(:name => 'Story'))]
-  task_tracker = (Tracker.find_by_name('Task') || Tracker.create!(:name => 'Task'))
+  story_trackers = [(Tracker.where(name: 'Story').first || Tracker.create!(:name => 'Story'))]
+  task_tracker = (Tracker.where(name: 'Task').first || Tracker.create!(:name => 'Task'))
 
-  copy_from = Tracker.find(:first, :conditions=>{:name => 'Feature request'})
+  copy_from = Tracker.where(:name => 'Feature request').first
   story_trackers.each{|tracker|
     if copy_from.respond_to? :workflow_rules #redmine 2 master
       tracker.workflow_rules.copy(copy_from)
@@ -202,7 +202,7 @@ Given /^the (.*) project has the backlogs plugin enabled$/ do |project_id|
       tracker.workflows.copy(copy_from)
     end
   }
-  copy_from = Tracker.find(:first, :conditions=>{:name => 'Bug'})
+  copy_from = Tracker.where(:name => 'Bug').first
   if copy_from.respond_to? :workflow_rules
     task_tracker.save!
     task_tracker.workflow_rules.copy(copy_from)
@@ -265,14 +265,13 @@ end
 
 Given /^I have the following issue statuses available:$/ do |table|
   table.hashes.each do |status|
-    s = IssueStatus.find(:first, :conditions => ['name = ?', status['name']])
+    s = IssueStatus.where('name = ?', status['name']).first
     unless s
       s = IssueStatus.new
       s.name = status['name']
     end
 
     s.is_closed = status['is_closed'] == '1'
-    s.is_default = status['is_default'] == '1'
     s.default_done_ratio = status['default_done_ratio'].to_i unless status['default_done_ratio'].blank?
 
     s.save!
@@ -287,7 +286,7 @@ Given /^I have defined the following logins:$/ do |table|
     u.firstname = "Test"
     u.lastname = "Run"
     u.save!
-    m = Member.new(:role_ids => [Role.find_by_name("Developer").id], :user_id => u.id)
+    m = Member.new(:role_ids => [Role.where(name: "Developer").first.id], :user_id => u.id)
     @project.members << m
   end
 end
@@ -295,7 +294,7 @@ end
 Given /^I have made the following task mutations:$/ do |table|
   table.hashes.each do |mutation|
     mutation.delete_if{|k, v| v.to_s.strip == '' }
-    task = RbTask.find_by_subject(mutation.delete('task'))
+    task = RbTask.where(subject: mutation.delete('task')).first
     task.should_not be_nil
 
     set_now(mutation.delete('day'), :msg => task.subject, :sprint => current_sprint)
@@ -307,7 +306,7 @@ Given /^I have made the following task mutations:$/ do |table|
     if status_name.blank?
       status = nil
     else
-      status = IssueStatus.find(:first, :conditions => ['name = ?', status_name])
+      status = IssueStatus.where('name = ?', status_name).first
       raise "No such status '#{status_name}'" unless status
       status = status.id
     end
@@ -340,12 +339,12 @@ Given /^I have defined the following stories in the product backlog:$/ do |table
 
     t_value = story.delete('tracker')
     t = get_tracker(t_value.strip) unless t_value.nil?
-      
+
     params = initialize_story_params project.id
     params['subject'] = story.delete('subject').strip
     params['tracker_id'] = t.id unless t.nil?
     params['story_points'] = story.delete('points').to_i if story['points'].to_s != ''
-    params['release_id'] = RbRelease.find_by_name(story['release']).id if story['release'].to_s.strip != ''
+    params['release_id'] = RbRelease.where(name: story['release']).first.id if story['release'].to_s.strip != ''
     story.delete('release') unless story['release'].nil?
 
     story.should == {}
@@ -359,7 +358,7 @@ end
 
 Given /^I have defined the following stories in the following sprints?:$/ do |table|
   table.hashes.each do |story|
-    sprint = RbSprint.find_by_name(story.delete('sprint')) #find by name only, please use unique sprint names over projects for tests
+    sprint = RbSprint.where(name: story.delete('sprint')).first #find by name only, please use unique sprint names over projects for tests
     if story['project_id'] # where to put the story into, so we can have a story of project A in a sprint of project B
       project = get_project(story.delete('project_id'))
     else
@@ -371,7 +370,7 @@ Given /^I have defined the following stories in the following sprints?:$/ do |ta
     params['subject'] = story.delete('subject')
     params['fixed_version_id'] = sprint.id
     params['story_points'] = story.delete('points').to_i if story['points'].to_s != ''
-    params['release_id'] = RbRelease.find_by_name(story['release']).id if story['release'].to_s.strip != ''
+    params['release_id'] = RbRelease.where(name: story['release']).first.id if story['release'].to_s.strip != ''
     story.delete('release') unless story['release'].nil?
 
     set_now(story.delete('day'), :msg => params['subject'], :sprint => sprint)
@@ -387,17 +386,17 @@ end
 
 Given /^I have defined the following tasks:$/ do |table|
   table.hashes.each do |task|
-    story = RbStory.find(:first, :conditions => { :subject => task.delete('story') })
+    story = RbStory.where(:subject => task.delete('story')).first
     story.should_not be_nil
 
     params = initialize_task_params(story.id)
     params['subject'] = task.delete('subject')
 
     username = task.delete('assigned_to')
-    params['assigned_to_id'] = User.find_by_login(username).id unless username.nil? || username.strip == ''
+    params['assigned_to_id'] = User.where(login: username).first.id unless username.nil? || username.strip == ''
 
     status = task.delete('status')
-    params['status_id'] = IssueStatus.find(:first, :conditions => ['name = ?', status]).id unless status.blank?
+    params['status_id'] = IssueStatus.where('name = ?', status).first.id unless status.blank?
 
     hours = task.delete('estimate')
     params['estimated_hours'] = hours.to_f unless hours.blank?
@@ -427,11 +426,11 @@ Given /^I have defined the following impediments:$/ do |table|
   # sharing: an impediment can block more than on issues, each from different projects, when
   # cross_project_issue_relations is enabled. This is tested not here but using javascript tests.
   table.hashes.each do |impediment|
-    sprint = RbSprint.find(:first, :conditions => { :name => impediment.delete('sprint') })
-    blocks = RbStory.find(:first, :conditions => ['subject in (?)', impediment['blocks'].split(', ')])
+    sprint = RbSprint.where(:name => impediment.delete('sprint')).first
+    blocks = RbStory.where('subject in (?)', impediment['blocks'].split(', ')]).first
     params = initialize_impediment_params(:project_id => blocks.project_id, :fixed_version_id => sprint.id)
     params['subject'] = impediment.delete('subject')
-    params['blocks']  = RbStory.find(:all, :conditions => ['subject in (?)', impediment.delete('blocks').split(', ')]).map{ |s| s.id }.join(',')
+    params['blocks']  = RbStory.where('subject in (?)', impediment.delete('blocks').split(', ')).map{ |s| s.id }.join(',')
     impediment.should == {}
 
     # NOTE: We're bypassing the controller here because we're just
@@ -456,13 +455,13 @@ Given /^I am viewing the issues sidebar for (.+)$/ do |name|
   visit url_for(:controller => 'rb_hooks_render',
                 :action=>'view_issues_sidebar',
                 :project_id => @project,
-                :sprint_id => RbSprint.find_by_name(name).id,
+                :sprint_id => RbSprint.where(name: name).first.id,
                 :only_path => true)
   verify_request_status(200)
 end
 
 Given /^I am viewing the issue named "([^"]*)"$/ do |name|
-  issue = Issue.find_by_subject(name)
+  issue = Issue.where(subject: name).first
   visit url_for(:controller => 'issues', :action=>'show', :id => issue.id, :project_id => @project, :only_path=>true)
   verify_request_status(200)
 end
@@ -507,7 +506,7 @@ end
 
 Given /^show me the task hours$/ do
   header = ['task', 'hours']
-  data = Issue.find(:all, :conditions => ['tracker_id = ? and fixed_version_id = ?', RbTask.tracker, current_sprint.id]).collect{|t| [t.subject, t.remaining_hours.inspect]}
+  data = Issue.where('tracker_id = ? and fixed_version_id = ?', RbTask.tracker, current_sprint.id).collect{|t| [t.subject, t.remaining_hours.inspect]}
   show_table("Task hours", header, data)
 end
 
@@ -533,7 +532,7 @@ Given /^timelog from taskboard has been enabled$/ do
 end
 
 Given /^I am a team member of the project and allowed to update remaining hours$/ do
-  role = Role.find(:first, :conditions => "name='Manager'")
+  role = Role.where("name='Manager'").first
   role.permissions << :view_master_backlog
   role.permissions << :view_releases
   role.permissions << :view_taskboards
@@ -545,7 +544,7 @@ Given /^I am a team member of the project and allowed to update remaining hours$
 end
 
 Given /^I am logging time for task (.+)$/ do |subject|
-  issue = Issue.find_by_subject(subject)
+  issue = Issue.where(subject: subject).first
   visit "/issues/#{issue.id}/time_entries"
   click_link('Log time')
   verify_request_status(200)
@@ -566,7 +565,7 @@ Given /^I set the remaining_hours to (\d+)$/ do |arg1|
 end
 
 Given /^I am duplicating (.+) to (.+) for (.+)$/ do |story_old, story_new, sprint_name|
-  issue = Issue.find_by_subject(story_old)
+  issue = Issue.where(subject: story_old).first
   visit "/projects/#{@project.id}/issues/#{issue.id}/copy"
   verify_request_status(200)
   fill_in 'issue_subject', :with => story_new
@@ -643,7 +642,7 @@ end
 
 Given /^Story closes when all Tasks are closed$/ do
   Backlogs.setting[:story_follow_task_status] = 'close'
-  status = IssueStatus.find_by_name('Closed')
+  status = IssueStatus.where(name: 'Closed').first
   Backlogs.setting[:story_close_status_id] = status.id
 end
 

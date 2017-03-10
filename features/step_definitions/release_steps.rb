@@ -1,18 +1,18 @@
 Then /^show me the releases$/ do
-  RbRelease.find(:all).each{|release|
+  RbRelease.all.each{|release|
     puts "Release: #{release}"
   }
 end
 
 Then /^show me release (.+)$/ do |release_name|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   release.should_not be_nil
   puts "Release: #{release}"
   release.issues.each{|issue| puts "  Issue: #{issue}" }
 end
 
 Then /^show me the release backlog of (.+)$/ do |release_name|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   release.should_not be_nil
   RbStory.release_backlog(release).each{|issue|
     puts "  #{issue}"
@@ -20,33 +20,33 @@ Then /^show me the release backlog of (.+)$/ do |release_name|
 end
 
 When /^I move story (.+) to the product backlog$/ do |story_name|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.init_journal(User.current)
   story.release = nil
   story.save
 end
 
 When /^I move story (.+) to the release (.+)$/ do |story_name,release_name|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.should_not be_nil
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   release.should_not be_nil
   story.release = release
   story.save
 end
 
 Given /^I have set planned velocity to (\d+) points per (month|fortnight|week) for (.+)$/ do |velocity,velocity_timespan, release_name|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   release.planned_velocity = velocity
   release.save
 end
 
 
 When /^I add story (.+) to release (.+)$/ do |story_name, release_name|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   @story_params = {
     :id => story.id,
-    :release_id => RbRelease.find_by_name(release_name).id
+    :release_id => RbRelease.where(name: release_name).first.id
   }
   page.driver.post(
                       url_for(:controller => :rb_stories,
@@ -60,39 +60,39 @@ When /^I add story (.+) to release (.+)$/ do |story_name, release_name|
 end
 
 Then /^story (.+) should belong to release (.+)$/ do |story_name, release_name|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   release.should_not be_nil
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.should_not be_nil
   release.issues.exists?(story).should be_true
 end
 
 Then /^story (.+) should not belong to any release$/ do |story_name|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.should_not be_nil
   story.release_id.should be_nil
 end
 
 Then /^I should see the release backlog of (.+)$/ do |release|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   release.should_not be_nil
   page.should have_css("#stories-for-release-#{release.id}")
 end
 
 Then /^I should see (\d+) stories in the release backlog of (.+)$/ do |count, release|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   release.should_not be_nil
   page.all(:css, "#stories-for-release-#{release.id} .story").length.should == count.to_i
 end
 
 Then /^release "([^"]*)" should have (\d+) story points$/ do |release, points|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   release.should_not be_nil
   release.remaining_story_points.should == points.to_f
 end
 
 Then /^The release "([^"]*)" should be closed$/ do |release|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   release.status.should == 'closed'
   release.closed?.should be_true
 end
@@ -101,7 +101,7 @@ Given /^I have made the following story mutations:$/ do |table|
   #Mutations happen at 'day' relative to the story's sprint
   table.hashes.each do |mutation|
     mutation.delete_if{|k, v| v.to_s.strip == '' }
-    story = RbStory.find_by_subject(mutation.delete('story'))
+    story = RbStory.where(subject: mutation.delete('story')).first
     story.should_not be_nil
     current_sprint(story.fixed_version.name)
     set_now(mutation.delete('day'), :msg => story.subject, :sprint => current_sprint)
@@ -113,7 +113,7 @@ Given /^I have made the following story mutations:$/ do |table|
     if status_name.blank?
       status = nil
     else
-      status = IssueStatus.find(:first, :conditions => ['name = ?', status_name])
+      status = IssueStatus.where('name = ?', status_name).first
       raise "No such status '#{status_name}'" unless status
       status = status.id
     end
@@ -126,17 +126,17 @@ Given /^I have made the following story mutations:$/ do |table|
 end
 
 Given /^I accept story ([^"]*)$/ do |story_name|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.should_not be_nil
-  status = IssueStatus.find(:first, :conditions => ['name = ?', "Accepted"])
+  status = IssueStatus.where('name = ?', "Accepted").first
   story.status_id = status.id
   story.save!.should be_true
 end
 
 
 Given /^I duplicate ([^"]*) to release ([^"]*) as ([^"]*)$/ do |story_old, release_name, story_new|
-  issue = Issue.find_by_subject(story_old)
-  release = RbRelease.find_by_name(release_name)
+  issue = Issue.where(subject: story_old).first
+  release = RbRelease.where(name: release_name).first
   issue.should_not be_nil
   release.should_not be_nil
   issue_copy = issue.copy({:release_id => release.id,
@@ -146,20 +146,20 @@ Given /^I duplicate ([^"]*) to release ([^"]*) as ([^"]*)$/ do |story_old, relea
 end
 
 Given /^I set story ([^"]*) release relationship to (auto|initial|continued|added)$/ do |story_name,relation_type|
-  issue = Issue.find_by_subject(story_name)
+  issue = Issue.where(subject: story_name).first
   issue.should_not be_nil
   issue.release_relationship = relation_type
   issue.save
 end
 
 Then /^release "([^"]*)" should have (\d+) sprints$/ do |release, num|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   release.should_not be_nil
   release.sprints.size.should == num.to_i
 end
 
 Then /^show me the burndown data for release "([^"]*)"$/ do |release|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   burndown = release.burndown
   puts "days      #{release.days}"
   puts "closed    #{burndown[:closed_points]}"
@@ -173,7 +173,7 @@ Then /^show me the burndown data for release "([^"]*)"$/ do |release|
 end
 
 Then /^the release burndown for release "([^"]*)" should be:$/ do |release, table|
-  release = RbRelease.find_by_name(release)
+  release = RbRelease.where(name: release).first
   burndown = release.burndown
   table.hashes.each do |metrics|
     sprint = metrics.delete('sprint')
@@ -190,7 +190,7 @@ Then /^the release burndown for release "([^"]*)" should be:$/ do |release, tabl
 end
 
 Then /^([^"]*) has planned timespan of (\d+) days starting from ([^"]*)$/ do |release_name, days, start|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   burndown = release.burndown
 
   start_date = Date.parse start
@@ -201,7 +201,7 @@ Then /^([^"]*) has planned timespan of (\d+) days starting from ([^"]*)$/ do |re
 end
 
 Then /^([^"]*) has trend estimate end date at ([^"]*)$/ do |release_name, expected_end_date|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   burndown = release.burndown
   expected_end_date = Date.parse expected_end_date
   puts "Trend estimated end date: #{burndown.trend_estimate_end_date}"
@@ -209,7 +209,7 @@ Then /^([^"]*) has trend estimate end date at ([^"]*)$/ do |release_name, expect
 end
 
 Then /^(.*?) has trend (scope|closed) based on dates "(.*?)"$/ do |release_name,line_name, list_dates|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   burndown = release.burndown
   burndown_line = "lr_#{line_name}".intern
   lr = burndown.send(burndown_line) # fetch linear regression object
@@ -219,7 +219,7 @@ Then /^(.*?) has trend (scope|closed) based on dates "(.*?)"$/ do |release_name,
 end
 
 Then /^(.*?) has trend (scope|closed) with slope of (.*?) points per day intercepting at (.*?) points$/ do |release_name,line_name, slope, intercept|
-  release = RbRelease.find_by_name(release_name)
+  release = RbRelease.where(name: release_name).first
   burndown = release.burndown
   expected_slope = slope.to_f
   expected_intercept = intercept.to_f
@@ -233,8 +233,8 @@ end
 
 
 Then /^journal for "([^"]*)" should show change to release "([^"]*)"$/ do |story_name,release_name|
-  release = RbRelease.find_by_name(release_name)
-  story = RbStory.find_by_subject(story_name)
+  release = RbRelease.where(name: release_name).first
+  story = RbStory.where(subject: story_name).first
   found_change = false
   # Find journal entry containing change to release
   story.journals.each{|journal|
@@ -261,8 +261,8 @@ end
 
 Given(/^I want to bulk edit "(.*?)" and "(.*?)"$/) do |arg1, arg2|
   @bulk_issues = []
-  @bulk_issues << RbStory.find(:first, :conditions => ["subject=?", arg1])
-  @bulk_issues << RbStory.find(:first, :conditions => ["subject=?", arg2])
+  @bulk_issues << RbStory.where("subject=?", arg1).first
+  @bulk_issues << RbStory.where("subject=?", arg2).first
   visit url_for(:controller => :issues,
                 :action => :bulk_edit,
                 :ids => @bulk_issues.map(&:id)
@@ -287,12 +287,12 @@ When(/^I update the stories$/) do
 end
 
 Then(/^story "(.*?)" should have release "(.*?)"$/) do |story_name,release_name|
-  story = RbStory.find_by_subject(story_name)
-  release = RbRelease.find_by_name(release_name)
+  story = RbStory.where(subject: story_name).first
+  release = RbRelease.where(name: release_name).first
   story.release.id.should == release.id
 end
 
 Then(/^story "(.*?)" should have release relationship (Auto|Initial|Continued|Added)$/) do |story_name,relationship|
-  story = RbStory.find_by_subject(story_name)
+  story = RbStory.where(subject: story_name).first
   story.release_relationship.should == relationship.downcase
 end

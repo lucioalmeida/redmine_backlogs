@@ -20,11 +20,7 @@ gem "holidays", "~>1.0.3"
 gem "icalendar"
 # Choose nokogiri depending on RM version. This is done to avoid conflict with
 # RM 2.3 which pinned nokogiri at "<1.6.0" for group :test.
-if (redmine_version_major == 2 && redmine_version_minor == 3)
-gem "nokogiri", "< 1.6.0"
-else
-gem "nokogiri"
-end
+gem "nokogiri", ">= 1.6.7.2"
 gem "open-uri-cached"
 gem "prawn"
 gem 'json'
@@ -38,9 +34,9 @@ group :test do
   gem 'chronic'
   gem 'ZenTest', "=4.5.0" # 4.6.0 has a nasty bug that breaks autotest
   gem 'autotest-rails'
+  gem 'capybara'
   if RAILS_VERSION_IS_3
     unless chiliproject
-      gem 'capybara', "~> 1.1" if ENV['IN_RBL_TESTENV'] == 'true' # redmine 2.3 conflicts
       gem "faye-websocket", "~>0.4.7"
       gem "poltergeist", "~>1.0"
     end
@@ -48,7 +44,6 @@ group :test do
     gem "culerity"
   else
     unless chiliproject
-      gem "capybara", "~>1.1.0"
       gem "poltergeist", "~>0.6.0"
     end
     gem "cucumber", "=1.1.0"
@@ -70,7 +65,7 @@ group :test do
     gem "rspec-rails", "=1.3.3"
   end
   if RUBY_VERSION >= "1.9"
-    gem "simplecov", "~>0.6"
+    gem "simplecov", "~> 0.9.1", :require => false
   else
     gem "rcov",  "=0.9.11"
   end
@@ -82,4 +77,4 @@ end
 
 # moved out of the dev group so backlogs can be tested by the user after install. Too many issues of weird setups with apache, nginx, etc.
 # thin doesn't work for jruby
-gem "thin", :platforms => [:ruby]
+#gem "thin", :platforms => [:ruby]

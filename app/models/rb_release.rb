@@ -63,7 +63,7 @@ class ReleaseBurndown
                .order(:day).group(:day).sum(:closed_points)
 
     # Series collected, now format data for jqplot
-    # Slightly hacky formatting to get the correct view. Might change when this jqplot issue is 
+    # Slightly hacky formatting to get the correct view. Might change when this jqplot issue is
     # sorted out:
     # See https://bitbucket.org/cleonello/jqplot/issue/181/nagative-values-in-stacked-bar-chart
     @data[:closed_points] = closed.values
@@ -171,10 +171,9 @@ class RbRelease < ActiveRecord::Base
   validates_length_of :name, :maximum => 64
   validate :dates_valid?
 
-  scope :open, :conditions => {:status => 'open'}
-  scope :closed, :conditions => {:status => 'closed'}
-  scope :visible, lambda {|*args| { :include => :project,
-                                    :conditions => Project.allowed_to_condition(args.first || User.current, :view_releases) } }
+  scope :open, lambda { where(:status => 'open') }
+  scope :closed, lambda { where(:status => 'closed') }
+  scope :visible, lambda {|*args| includes(:project).where(Project.allowed_to_condition(args.shift || User.current, :view_releases, *args)) }
 
 
   include Backlogs::ActiveRecord::Attributes
@@ -268,7 +267,7 @@ class RbRelease < ActiveRecord::Base
   end
 
   def today
-    ReleaseBurndownDay.find(:first, :conditions => { :release_id => self, :day => Date.today })
+    ReleaseBurndownDay.where(:release_id => self, :day => Date.today).first
   end
 
   def remaining_story_points #FIXME merge bohansen_release_chart removed this
@@ -304,14 +303,13 @@ class RbRelease < ActiveRecord::Base
         r = self.project.root? ? self.project : self.project.root
         # Project used for other sharings
         p = self.project
-        Project.visible.scoped(:include => :releases,
-          :conditions => ["#{RbRelease.table_name}.id = #{id}" +
+        Project.visible.joins(:releases).where("#{RbRelease.table_name}.id = #{id}" +
           " OR (#{Project.table_name}.status <> #{Project::STATUS_ARCHIVED} AND (" +
           " 'system' = ? " +
           " OR (#{Project.table_name}.lft >= #{r.lft} AND #{Project.table_name}.rgt <= #{r.rgt} AND ? = 'tree')" +
           " OR (#{Project.table_name}.lft > #{p.lft} AND #{Project.table_name}.rgt < #{p.rgt} AND ? IN ('hierarchy', 'descendants'))" +
           " OR (#{Project.table_name}.lft < #{p.lft} AND #{Project.table_name}.rgt > #{p.rgt} AND ? = 'hierarchy')" +
-          "))",sharing,sharing,sharing,sharing]).order('lft')
+          "))",sharing,sharing,sharing,sharing).order('lft')
       end
     @shared_projects
   end

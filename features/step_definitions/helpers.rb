@@ -53,11 +53,11 @@ def get_project(identifier)
 end
 
 def get_releases(list)
-  list.split(',').collect{|r| RbRelease.find_by_name(r).id}
+  list.split(',').collect{|r| RbRelease.where(name: r).first.id}
 end
 
 def get_tracker(identifier)
-  Tracker.find_by_name(identifier)
+  Tracker.where(name: identifier).first
 end
 
 
@@ -70,9 +70,9 @@ def current_sprint(name = nil)
       raise "Unexpected command #{name.inspect}"
     end
   elsif name.is_a?(String)
-    @sprint =  RbSprint.find_by_name(name)
+    @sprint =  RbSprint.where(name: name).first
   elsif name.nil?
-    @sprint = @sprint ? RbSprint.find_by_id(@sprint.id) : nil
+    @sprint = @sprint ? RbSprint.where(id: @sprint.id).first : nil
   else
     raise "Unexpected #{name.class}"
   end
@@ -138,8 +138,8 @@ def story_after(rank, project, sprint=nil)
   return nil if rank.blank?
 
   rank = rank.to_i if rank.is_a?(String) && rank =~ /^[0-9]+$/
-
-  nxt = RbStory.find_by_rank(rank, RbStory.find_options(:project => project, :sprint => sprint))
+  op = RbStory.find_options(:project => project, :sprint => sprint)
+  nxt = RbStory.where(rank: rank, op[:conditions]).joins(op[:joins]).first
   return nil if nxt.nil?
 
   return nxt.id
@@ -164,23 +164,24 @@ end
 def initialize_story_params(project_id = nil)
   @story = HashWithIndifferentAccess.new(RbStory.new.attributes)
   @story['project_id'] = project_id ? Project.find(project_id).id : @project.id
-  @story['tracker_id'] = RbStory.trackers.include?(Backlogs.setting[:default_story_tracker]) ? Backlogs.setting[:default_story_tracker] : RbStory.trackers.first 
+  @story['tracker_id'] = RbStory.trackers.include?(Backlogs.setting[:default_story_tracker]) ? Backlogs.setting[:default_story_tracker] : RbStory.trackers.first
   @story['author_id']  = @user.id
   @story
 end
 
 def initialize_task_params(story_id)
   params = HashWithIndifferentAccess.new(RbTask.new.attributes)
-  params['project_id'] = RbStory.find_by_id(story_id).project_id
+  story = RbStory.where(id: story_id).first
+  params['project_id'] = story.project_id
   params['tracker_id'] = RbTask.tracker
   params['author_id']  = @user.id
   params['parent_issue_id'] = story_id
-  params['status_id'] = IssueStatus.default.id
+  params['status_id'] = story.default_status.id
   params
 end
 
 def sprint_id_from_name(name)
-  sprint = RbSprint.find_by_name(name)
+  sprint = RbSprint.where(name: name).first
   raise "No sprint by name #{name}" unless sprint
   return sprint.id
 end
@@ -190,7 +191,7 @@ def initialize_impediment_params(attributes)
   params = HashWithIndifferentAccess.new(RbTask.new.attributes).merge(attributes)
   params['tracker_id'] = RbTask.tracker
   params['author_id']  = @user.id
-  params['status_id'] = IssueStatus.default.id
+  params['status_id'] = RbTask.tracker.try(:default_status).id
   params
 end
 
@@ -205,7 +206,7 @@ def login_as(user, password)
   fill_in 'username', :with => user
   fill_in 'password', :with => password
   page.find(:xpath, '//input[@name="login"]').click
-  @user = User.find(:first, :conditions => "login='"+user+"'")
+  @user = User.where("login='"+user+"'").first
 end
 
 def login_as_product_owner
@@ -228,7 +229,7 @@ def login_as_admin
 end
 
 def setup_permissions(typ)
-  role = Role.find(:first, :conditions => "name='Manager'")
+  role = Role.where("name='Manager'").first
   if typ == 'scrum master'
     role.permissions << :view_master_backlog
     role.permissions << :view_releases
@@ -257,7 +258,7 @@ def setup_permissions(typ)
     role.permissions << :configure_backlogs
   end
   role.save!
-  
+
   @projects.each{|project|
     m = Member.new(:user => @user, :roles => [role])
     project.members << m
@@ -275,8 +276,8 @@ def story_position(story)
   p1 = RbStory.backlog(story.project, story.fixed_version_id, nil).select{|s| s.id == story.id}[0].rank
   p2 = story.rank
   p1.should == p2
-
-  s2 = RbStory.find_by_rank(p1, RbStory.find_options(:project => @project, :sprint => current_sprint))
+  op = RbStory.find_options(:project => @project, :sprint => current_sprint)
+  s2 = RbStory.where(rank: p1, op[:conditions]).joins(op[:joins])
   s2.should_not be_nil
   s2.id.should == story.id
 
@@ -335,4 +336,3 @@ When /^(?:|I )select multiple "([^"]*)" from "([^"]*)"(?: within "([^"]*)")?$/ d
     }
   end
 end
-

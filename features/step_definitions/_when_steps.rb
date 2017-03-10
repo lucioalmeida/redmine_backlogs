@@ -44,9 +44,9 @@ When /^I (try to )?create the sprint$/ do |attempt|
 end
 
 When /^I (try to )?move the story named (.+) above (.+)$/ do |attempt, story_subject, next_subject|
-  story = RbStory.find(:first, :conditions => ["subject=?", story_subject])
-  nxt  = RbStory.find(:first, :conditions => ["subject=?", next_subject])
-  
+  story = RbStory.where("subject=?", story_subject).first
+  nxt  = RbStory.where("subject=?", next_subject).first
+
   attributes = story.attributes
   attributes[:next]             = nxt.id
 
@@ -62,10 +62,10 @@ end
 
 When /^I (try to )?move the story named (.+) to the (\d+)(?:st|nd|rd|th) position of the sprint named (.+)$/ do |attempt, story_subject, position, sprint_name|
   position = position.to_i
-  story = RbStory.find_by_subject(story_subject)
-  sprint = RbSprint.find_by_name(sprint_name)
+  story = RbStory.where(subject: story_subject).first
+  sprint = RbSprint.where(name: sprint_name).first
   story.fixed_version = sprint
-  
+
   attributes = story.attributes
   attributes[:next] = story_after(position, sprint.project, sprint).to_s
 
@@ -94,7 +94,7 @@ When /^I (try to )?move the (\d+)(?:st|nd|rd|th) story to the (\d+|last)(?:st|nd
       nxt = @story_ids[new_pos-1]
   end
 
-  page.driver.post( 
+  page.driver.post(
                       url_for(:controller => :rb_stories,
                               :action => :update,
                               :id => story_id,
@@ -112,7 +112,7 @@ When /^I (try to )?request the server_variables resource$/ do |attempt|
 end
 
 When /^I (try to )?update the impediment$/ do |attempt|
-  page.driver.post( 
+  page.driver.post(
                       url_for(:controller => :rb_impediments,
                               :action => :update,
                               :id => @impediment_params['id'],
@@ -205,7 +205,7 @@ When /^I try to download the calendar feed$/ do
 end
 
 When /^I try to download the XML sheet for (.+)$/ do |sprint_name|
-  sprint = RbSprint.find(:first, :conditions => ["name=?", sprint_name])
+  sprint = RbSprint.where("name=?", sprint_name).first
   visit url_for({:key => @api_key, :controller => :rb_sprints, :action => :download,
                  :sprint_id => sprint, :format => :xml, :only_path => true})
 end
@@ -216,7 +216,7 @@ When /^I view the master backlog$/ do
 end
 
 When /^I view the stories of (.+) in the issues tab/ do |sprint_name|
-  sprint = RbSprint.find(:first, :conditions => ["name=?", sprint_name])
+  sprint = RbSprint.where("name=?", sprint_name).first
   visit url_for(:controller => :rb_queries, :action => :show, :project_id => sprint.project_id, :sprint_id => sprint.id, :only_path => true)
 end
 
@@ -268,9 +268,9 @@ When /^I drag task (.+) to the state (.+) in the row of (.+)$/ do |task, state, 
 end
 
 When /^I create an impediment named (.+) which blocks (.+?)(?: and (.+))?$/ do |impediment_name, blocked_name, blocked2_name|
-  blocked = Issue.find_by_subject(blocked_name)
+  blocked = Issue.where(subject: blocked_name).first
   blocked_list = [blocked.id.to_s]
-  blocked2 = Issue.find_by_subject(blocked2_name) if blocked2_name != ''
+  blocked2 = Issue.where(subject: blocked2_name).first if blocked2_name != ''
   blocked_list << blocked2.id.to_s if blocked2
   page.find("#impediments span.add_new").click
   with_scope('#task_editor') do
@@ -285,10 +285,10 @@ When /^I create an impediment named (.+) which blocks (.+?)(?: and (.+))?$/ do |
 end
 
 When /^I update the status of task (.+?) to (.+?)$/ do |task, state|
-  task = RbTask.find_by_subject(task)
+  task = RbTask.where(subject: task).first
   task.should_not be_nil
   @task_params = HashWithIndifferentAccess.new(task.attributes)
-  state = IssueStatus.find_by_name(state)
+  state = IssueStatus.where(name: state).first
   @task_params[:status_id] = state.id
   page.driver.post(
                       url_for(:controller => :rb_tasks,
@@ -302,13 +302,13 @@ end
 
 # Low level tests on higher_item and lower_item, should be rspec tests
 When /^I call move_after\("([^"]*)"\) on "([^"]*)"$/ do |arg, obj|
-  obj = RbStory.find_by_subject(obj)
-  arg = (arg=="nil") ? nil : RbStory.find_by_subject(arg)
+  obj = RbStory.where(subject: obj).first
+  arg = (arg=="nil") ? nil : RbStory.where(subject: arg).first
   obj.move_after(arg)
 end
 When /^I call move_before\("([^"]*)"\) on "([^"]*)"$/ do |arg, obj|
-  obj = RbStory.find_by_subject(obj)
-  arg = (arg=="nil") ? nil : RbStory.find_by_subject(arg)
+  obj = RbStory.where(subject: obj).first
+  arg = (arg=="nil") ? nil : RbStory.where(subject: arg).first
   obj.move_before(arg)
 end
 

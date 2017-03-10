@@ -1,9 +1,12 @@
+#wrapper {
+  overflow: inherit;
+}
 #taskboard, #taskboard table {
   background-color: white;
   color: black;
 }
 #taskboard .task {
-  color: black; 
+  color: black;
 }
 #taskboard .issue .subject {
   white-space: normal;
@@ -24,7 +27,7 @@
  swimlane class is used by:
   - #board_header
   - .board
-  
+
 Also use by the Column Width preference to
 determine the unit width of the swimlanes.
 See RB.Taskboard.initialize()
@@ -83,7 +86,7 @@ See RB.Taskboard.initialize()
 .board td:first-child{
   min-width:210px;
   padding:5px;
-  width:210px; 
+  width:210px;
 }
 .board td:last-child{
   border-right:none;
@@ -376,6 +379,11 @@ See RB.Taskboard.initialize()
 .rb_editor .time_entry_comments{
   height:30px;
   width:268px;
+}
+
+div.rb_editor {
+  height: 500px !important;
+  overflow-x: hidden !important;
 }
 
 /* others */

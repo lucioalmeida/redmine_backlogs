@@ -90,7 +90,9 @@ class RbStory < Issue
     options
   end
 
-  scope :backlog_scope, lambda{|opts| RbStory.find_options(opts) }
+  scope :backlog_scope, lambda{|opts|
+    op = RbStory.find_options(opts)
+    joins(op[:joins]).where(op[:conditions]).order(op[:order]) }
 
   def self.inject_lower_higher
     prev = nil
@@ -168,7 +170,7 @@ class RbStory < Issue
 
   def self.find_all_updated_since(since, project_id)
     #look in backlog, sprint and releases. look in shared sprints and shared releases
-    project = Project.select("id,lft,rgt").find_by_id(project_id)
+    project = Project.select("id,lft,rgt").where(id: project_id).first
     sprints = project.open_shared_sprints.map{|s|s.id}
     releases = project.open_releases_by_date.map{|s|s.id}
     #following will execute 3 queries and join it as array
@@ -191,7 +193,7 @@ class RbStory < Issue
       trackers = [] if trackers.blank?
     end
 
-    trackers = Tracker.find_all_by_id(trackers)
+    trackers = Tracker.find(trackers)
     trackers = trackers & options[:project].trackers if options[:project]
     trackers = trackers.sort_by { |t| [t.position] }
 

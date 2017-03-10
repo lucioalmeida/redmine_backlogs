@@ -6,7 +6,7 @@
     roles_projs = User.current.projects_by_role
     roles_projs.each_pair{|k,v| v.each{|p| projs.add(p)}}
     Rails.logger.info "in my project"
-    tracker = Tracker.find_by_id(RbTask.tracker)
+    tracker = Tracker.where(id: RbTask.tracker).first
     statuses = tracker.issue_statuses
   else
     tracker = nil
@@ -39,7 +39,7 @@
               next if statuses[task.status_id].nil? # Avoid bug?
               if statuses[task.status_id].is_closed?
                 done+=1
-              elsif task.status_id == IssueStatus.default.id
+              elsif task.status_id == task.default_status.id
                 todo+=1
               else
                 progress+=1

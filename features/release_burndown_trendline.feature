@@ -8,12 +8,12 @@ Feature: Release burndown
       And no versions or issues exist
       And I am a product owner of the project
       And I have the following issue statuses available:
-        | name        | is_closed | is_default | default_done_ratio |
-        | New         |         0 |          1 |                    |
-        | In Progress |         0 |          0 |                    |
-        | Feedback    |         0 |          0 |                    |
-        | Accepted    |         1 |          0 |                    |
-        | Rejected    |         1 |          0 |                  1 |
+        | name        | is_closed | default_done_ratio |
+        | New         |         0 |                    |
+        | In Progress |         0 |                    |
+        | Feedback    |         0 |                    |
+        | Accepted    |         1 |                    |
+        | Rejected    |         1 |                  1 |
       And the current time is 2011-01-01 08:00:00
       And I have defined the following sprints:
         | name       | sprint_start_date | effective_date |
@@ -100,7 +100,7 @@ Feature: Release burndown
       And Rel 1 has trend estimate end date at 2011-03-12
 # Verified by calculating crossing date of trend closed and trend scope in spreadsheet
       And the current time is 2011-01-16 23:00:00
-     Then show me the burndown data for release "Rel 1" 
+     Then show me the burndown data for release "Rel 1"
       And Rel 1 has trend closed based on dates "2011-01-02,2011-01-08,2011-01-15,2011-01-16"
       And Rel 1 has trend closed with slope of 0.128 points per day intercepting at 0.442 points
       And Rel 1 has trend scope based on dates "2011-01-02,2011-01-08,2011-01-15,2011-01-16"
@@ -108,4 +108,3 @@ Feature: Release burndown
       And Rel 1 has trend scope with slope of 0.082 points per day intercepting at 13.83 points
 # By linear regression of trend scope and trend closed crossing date is found in spreadsheet.
       And Rel 1 has trend estimate end date at 2011-10-16
-

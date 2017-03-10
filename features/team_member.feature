@@ -33,7 +33,7 @@ Feature: Team Member
         | subject      | sprint     | blocks  |
         | Impediment 1 | Sprint 001 | Story 1 |
         | Impediment 2 | Sprint 001 | Story 2 |
-         
+
   @javascript
   Scenario: Update a task with full javascript stack to check assigned user is not overwritten during update.
     Given I am viewing the taskboard for Sprint 001
@@ -106,11 +106,11 @@ Feature: Team Member
      Then the server should return 2 updated impediments
      #FIXME tests on sharing
 
-  Scenario: Fetch zero updated impediments 
+  Scenario: Fetch zero updated impediments
     Given I am viewing the taskboard for Sprint 001
      When the browser fetches impediments updated since 1 week from now
      Then the server should return 0 updated impediments
-      
+
   Scenario: Copy estimate to remaining
     Given I am viewing the taskboard for Sprint 001
       And I want to create a task for Story 1
@@ -182,7 +182,7 @@ Feature: Team Member
 
 #    Prerequisite ** Set default_done_ratio for all statuses involved (user action)
 # Beware: to get the right behavior, one has to fiddle with story workflow and good ratios.
-# In this case, not all states below are allowed for stories (e.g. not In Progress)    
+# In this case, not all states below are allowed for stories (e.g. not In Progress)
   Scenario: Story loosely follows Task states while done_ratio is determined by story_state default ratio
     Given I have the following issue statuses available:
         | name        | is_closed | is_default | default_done_ratio |
@@ -217,7 +217,7 @@ Feature: Team Member
      Then story Story 2 should have the status Feedback
 
 # Beware: to get the right behavior, one has to fiddle with story workflow and good ratios.
-# In this case, not all states below are allowed for stories (e.g. not In Progress)    
+# In this case, not all states below are allowed for stories (e.g. not In Progress)
   Scenario: Story loosely follows Task states when issue done_ratio is maintained by issue_field
     Given I have the following issue statuses available:
         | name        | is_closed | is_default | default_done_ratio |

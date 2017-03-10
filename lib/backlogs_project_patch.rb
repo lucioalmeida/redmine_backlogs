@@ -7,10 +7,9 @@ module Backlogs
       @statistics = {:succeeded => [], :failed => [], :values => {}}
 
       @active_sprint = @project.active_sprint
-      @past_sprints = RbSprint.find(:all,
-        :conditions => ["project_id = ? and not(effective_date is null or sprint_start_date is null) and effective_date < ?", @project.id, Date.today],
-        :order => "effective_date desc",
-        :limit => 5).select(&:has_burndown?)
+      @past_sprints = RbSprint.where("project_id = ? and not(effective_date is null or sprint_start_date is null) and effective_date < ?", @project.id, Date.today).
+        order("effective_date desc").
+        limit(5).select(&:has_burndown?)
       @all_sprints = (@past_sprints + [@active_sprint]).compact
 
       @all_sprints.each{|sprint| sprint.burndown.direction = :up }
@@ -173,7 +172,7 @@ module Backlogs
 
       base.class_eval do
         unloadable
-        has_many :releases, :class_name => 'RbRelease', :inverse_of => :project, :dependent => :destroy, :order => "#{RbRelease.table_name}.release_start_date DESC, #{RbRelease.table_name}.name DESC"
+        has_many :releases, -> { order("#{RbRelease.table_name}.release_start_date DESC, #{RbRelease.table_name}.name DESC") }, class_name: 'RbRelease', inverse_of: :project, dependent: :destroy
         has_many :releases_multiview, :class_name => 'RbReleaseMultiview', :dependent => :destroy
         include Backlogs::ActiveRecord::Attributes
       end
@@ -190,7 +189,7 @@ module Backlogs
       end
 
       def rb_project_settings
-        @project_settings ||= RbProjectSettings.first(:conditions => ["project_id = ?", self.id])
+        @project_settings ||= RbProjectSettings.where("project_id = ?", self.id).first
         unless @project_settings
           @project_settings = RbProjectSettings.new( :project_id => self.id)
           @project_settings.save
@@ -217,7 +216,7 @@ module Backlogs
       def open_shared_sprints
         if Backlogs.setting[:sharing_enabled]
           order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
-          shared_versions.visible.scoped(:conditions => {:status => ['open', 'locked']}, :order => "sprint_start_date #{order}, effective_date #{order}").collect{|v| v.becomes(RbSprint) }
+          shared_versions.visible.where(:status => ['open', 'locked']).order("sprint_start_date #{order}, effective_date #{order}").collect{|v| v.becomes(RbSprint) }
         else #no backlog sharing
           RbSprint.open_sprints(self)
         end
@@ -227,7 +226,7 @@ module Backlogs
       def closed_shared_sprints
         if Backlogs.setting[:sharing_enabled]
           order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
-          shared_versions.visible.scoped(:conditions => {:status => ['closed']}, :order => "sprint_start_date #{order}, effective_date #{order}").collect{|v| v.becomes(RbSprint) }
+          shared_versions.visible.where(:status => ['closed']).order("sprint_start_date #{order}, effective_date #{order}").collect{|v| v.becomes(RbSprint) }
         else #no backlog sharing
           RbSprint.closed_sprints(self)
         end
@@ -235,16 +234,16 @@ module Backlogs
 
       def active_sprint
         time = (Time.zone ? Time.zone : Time).now
-        @active_sprint ||= RbSprint.find(:first, :conditions => [
+        @active_sprint ||= RbSprint.where(
           "project_id = ? and status = 'open' and not (sprint_start_date is null or effective_date is null) and ? >= sprint_start_date and ? <= effective_date",
           self.id, time.end_of_day, time.beginning_of_day
-        ])
+        ).first
       end
 
       def open_releases_by_date
         order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
         (Backlogs.setting[:sharing_enabled] ? shared_releases : releases).
-          visible.open.
+          visible.open.joins(:project).
           order("#{RbRelease.table_name}.release_end_date #{order}, #{RbRelease.table_name}.release_start_date #{order}")
       end
 
@@ -257,21 +256,18 @@ module Backlogs
 
       def shared_releases
         if new_record?
-          RbRelease.scoped(:include => :project,
-                       :conditions => "#{Project.table_name}.status <> #{Project::STATUS_ARCHIVED} AND #{RbRelease.table_name}.sharing = 'system'")
+          RbRelease.joins(:project).where("#{Project.table_name}.status <> #{Project::STATUS_ARCHIVED} AND #{RbRelease.table_name}.sharing = 'system'")
         else
           @shared_releases ||= begin
             order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
             r = root? ? self : root
-            RbRelease.scoped(:include => :project,
-              :conditions => "#{Project.table_name}.id = #{id}" +
+            RbRelease.joins(:project).where("#{Project.table_name}.id = #{id}" +
                 " OR (#{Project.table_name}.status <> #{Project::STATUS_ARCHIVED} AND (" +
                   " #{RbRelease.table_name}.sharing = 'system'" +
                 " OR (#{Project.table_name}.lft >= #{r.lft} AND #{Project.table_name}.rgt <= #{r.rgt} AND #{RbRelease.table_name}.sharing = 'tree')" +
                 " OR (#{Project.table_name}.lft < #{lft} AND #{Project.table_name}.rgt > #{rgt} AND #{RbRelease.table_name}.sharing IN ('hierarchy', 'descendants'))" +
                 " OR (#{Project.table_name}.lft > #{lft} AND #{Project.table_name}.rgt < #{rgt} AND #{RbRelease.table_name}.sharing = 'hierarchy')" +
-                "))",
-              :order => "#{RbRelease.table_name}.release_end_date #{order}, #{RbRelease.table_name}.release_start_date #{order}")
+                "))").order("#{RbRelease.table_name}.release_end_date #{order}, #{RbRelease.table_name}.release_start_date #{order}")
           end
         end
       end
@@ -282,12 +278,12 @@ module Backlogs
       # by parent projects which are out of scope of the currently selected project as they will
       # disappear when dropped.
       def droppable_releases
-        connection.select_all(_sql_for_droppables(RbRelease.table_name,true))
+        RbStory.connection.select_all(_sql_for_droppables(RbRelease.table_name,true))
       end
 
       # Return a list of sprints each project's stories can be dropped to on the master backlog.
       def droppable_sprints
-         connection.select_all(_sql_for_droppables(Version.table_name))
+         RbStory.connection.select_all(_sql_for_droppables(Version.table_name))
       end
 
 private
@@ -326,7 +322,7 @@ private
 
       # Returns sql for aggregating a list from grouped rows. Depends on database implementation.
       def _sql_for_aggregate_list(field_name)
-        adapter_name = connection.adapter_name.downcase
+        adapter_name = RbStory.connection.adapter_name.downcase
         aggregate_list = ""
         if adapter_name.starts_with? 'mysql'
           aggregate_list = " GROUP_CONCAT(#{field_name} SEPARATOR ',') as list "

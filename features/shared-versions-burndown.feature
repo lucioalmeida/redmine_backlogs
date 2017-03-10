@@ -11,15 +11,15 @@ Feature: Burndown
       And I am a scrum master of the project
       And I have selected the ecookbook project
       And I have the following issue statuses available:
-        | name        | is_closed | is_default | default_done_ratio |
-        | New         |         0 |          1 |                    |
-        | Assigned    |         0 |          0 |                    |
-        | In Progress |         0 |          0 |                    |
-        | Resolved    |         0 |          0 |                    |
-        | Feedback    |         0 |          0 |                    |
-        | Closed      |         1 |          0 |                    |
-        | Accepted    |         1 |          0 |                    |
-        | Rejected    |         1 |          0 |                  1 |
+        | name        | is_closed | default_done_ratio |
+        | New         |         0 |                    |
+        | Assigned    |         0 |                    |
+        | In Progress |         0 |                    |
+        | Resolved    |         0 |                    |
+        | Feedback    |         0 |                    |
+        | Closed      |         1 |                    |
+        | Accepted    |         1 |                    |
+        | Rejected    |         1 |                  1 |
 
       And the current time is 2011-01-01 07:00:00
 

@@ -1,8 +1,4 @@
-if (Redmine::VERSION::MAJOR > 2) || (Redmine::VERSION::MAJOR == 2 && Redmine::VERSION::MINOR >= 3)
-  require_dependency 'issue_query'
-else
-  require_dependency 'query'
-end
+require_dependency 'issue_query'
 require 'erb'
 
 module Backlogs
@@ -72,19 +68,19 @@ module Backlogs
           backlogs_filters["release_id"] = {
             :type => :list_optional,
             :name => l(:field_release),
-            :values => RbRelease.find(:all, :conditions => ["project_id IN (?)", project], :order => 'name ASC').collect { |d| [d.name, d.id.to_s]},
+            :values => RbRelease.where("project_id IN (?)", project).order('name ASC').collect { |d| [d.name, d.id.to_s]},
             :order => 21
           }
         end
         @available_filters = @available_filters.merge(backlogs_filters)
       end
-      
+
       def available_columns_with_backlogs_issue_type
         @available_columns = available_columns_without_backlogs_issue_type
         return @available_columns if !show_backlogs_issue_items?(project) or @backlog_columns_included
-        
+
         @backlog_columns_included = true
-        
+
         @available_columns << QueryColumn.new(:story_points, :sortable => "#{Issue.table_name}.story_points")
         @available_columns << QueryColumn.new(:velocity_based_estimate)
         @available_columns << QueryColumn.new(:position, :sortable => "#{Issue.table_name}.position")
@@ -136,7 +132,7 @@ module Backlogs
 
         return sql
       end
-      
+
       private
       def show_backlogs_issue_items?(project)
         !project.nil? and project.module_enabled?('backlogs')
@@ -153,13 +149,9 @@ module Backlogs
       def add_available_column(column)
         self.available_columns << (column)
       end
-      
+
     end
   end
 end
 
-if (Redmine::VERSION::MAJOR > 2) || (Redmine::VERSION::MAJOR == 2 && Redmine::VERSION::MINOR >= 3)
-  IssueQuery.send(:include, Backlogs::IssueQueryPatch) unless IssueQuery.included_modules.include? Backlogs::IssueQueryPatch
-else
-  Query.send(:include, Backlogs::IssueQueryPatch) unless Query.included_modules.include? Backlogs::IssueQueryPatch
-end
+IssueQuery.send(:include, Backlogs::IssueQueryPatch) unless IssueQuery.included_modules.include? Backlogs::IssueQueryPatch

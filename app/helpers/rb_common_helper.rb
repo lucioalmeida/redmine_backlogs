@@ -98,11 +98,11 @@ filter:progid:DXImageTransform.Microsoft.Gradient(Enabled=1,GradientType=0,Start
   end
 
   def status_id_or_default(story)
-    story.new_record? ? IssueStatus.default.id : story.status.id
+    story.new_record? ? nil : story.status.id
   end
 
   def status_label_or_default(story)
-    story.new_record? ? IssueStatus.default.name : story.status.name
+    story.new_record? ? nil : story.status.name
   end
 
   def sprint_html_id_or_empty(sprint)
@@ -204,10 +204,7 @@ filter:progid:DXImageTransform.Microsoft.Gradient(Enabled=1,GradientType=0,Start
   end
 
   def self.find_backlogs_enabled_active_projects
-    projects = EnabledModule.find(:all,
-                             :conditions => ["enabled_modules.name = 'backlogs' and status = ?", Project::STATUS_ACTIVE],
-                             :include => :project,
-                             :joins => :project).collect { |mod| mod.project}
+    projects = EnabledModule.where("enabled_modules.name = 'backlogs' and status = ?", Project::STATUS_ACTIVE).include(:project).joins(:project).collect { |mod| mod.project}
   end
 
   # Returns a collection of users allowed to log time for the current project. (see app/views/rb_taskboards/show.html.erb for usage)
@@ -264,7 +261,7 @@ filter:progid:DXImageTransform.Microsoft.Gradient(Enabled=1,GradientType=0,Start
   # Convert selected ids to integer and remove blank values.
   def selected_ids(options)
     return nil if options.nil?
-    options.collect{|o| o.to_i unless o.blank?}.compact! 
+    options.collect{|o| o.to_i unless o.blank?}.compact!
   end
 
   def format_release_sharing(v)

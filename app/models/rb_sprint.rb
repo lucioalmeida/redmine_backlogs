@@ -19,25 +19,19 @@ class RbSprint < Version
 
   rb_scope :open_sprints, lambda { |project|
     order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
-    {
-      :order => "CASE sprint_start_date WHEN NULL THEN 1 ELSE 0 END #{order},
+    order("CASE sprint_start_date WHEN NULL THEN 1 ELSE 0 END #{order},
                  sprint_start_date #{order},
                  CASE effective_date WHEN NULL THEN 1 ELSE 0 END #{order},
-                 effective_date #{order}",
-      :conditions => [ "status = 'open' and project_id = ?", project.id ] #FIXME locked, too?
-    }
+                 effective_date #{order}").where("status = 'open' and project_id = ?", project.id)
   }
 
   #TIB ajout du scope :closed_sprints
   rb_scope :closed_sprints, lambda { |project|
     order = Backlogs.setting[:sprint_sort_order] == 'desc' ? 'DESC' : 'ASC'
-    {
-      :order => "CASE sprint_start_date WHEN NULL THEN 1 ELSE 0 END #{order},
+    order("CASE sprint_start_date WHEN NULL THEN 1 ELSE 0 END #{order},
                  sprint_start_date #{order},
                  CASE effective_date WHEN NULL THEN 1 ELSE 0 END #{order},
-                 effective_date #{order}",
-      :conditions => [ "status = 'closed' and project_id = ?", project.id ]
-    }
+                 effective_date #{order}").where("status = 'closed' and project_id = ?", project.id)
   }
 
   #depending on sharing mode
@@ -49,14 +43,13 @@ class RbSprint < Version
         r = self.project.root? ? self.project : self.project.root
         # Project used for other sharings
         p = self.project
-        Project.visible.scoped(:include => :versions,
-          :conditions => ["#{Version.table_name}.id = #{id}" +
+        Project.visible.joins(:versions).where("#{Version.table_name}.id = #{id}" +
           " OR (#{Project.table_name}.status <> #{Project::STATUS_ARCHIVED} AND (" +
           " 'system' = ? " +
           " OR (#{Project.table_name}.lft >= #{r.lft} AND #{Project.table_name}.rgt <= #{r.rgt} AND ? = 'tree')" +
           " OR (#{Project.table_name}.lft > #{p.lft} AND #{Project.table_name}.rgt < #{p.rgt} AND ? IN ('hierarchy', 'descendants'))" +
           " OR (#{Project.table_name}.lft < #{p.lft} AND #{Project.table_name}.rgt > #{p.rgt} AND ? = 'hierarchy')" +
-          "))",sharing,sharing,sharing,sharing]).order('lft')
+          "))",sharing,sharing,sharing,sharing).order('lft')
       end
     @shared_projects
   end
@@ -146,8 +139,7 @@ class RbSprint < Version
   end
 
   def impediments
-    @impediments ||= Issue.find(:all,
-      :conditions => ["id in (
+    @impediments ||= Issue.where("id in (
               select issue_from_id
               from issue_relations ir
               join issues blocked
@@ -157,7 +149,7 @@ class RbSprint < Version
               where ir.relation_type = 'blocks'
               )",
             RbStory.trackers + [RbTask.tracker],
-            self.id]
-      ) #.sort {|a,b| a.closed? == b.closed? ?  a.updated_on <=> b.updated_on : (a.closed? ? 1 : -1) }
+            self.id
+      )
   end
 end

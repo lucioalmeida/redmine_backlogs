@@ -1,6 +1,6 @@
 class RbServerVariablesController < RbApplicationController
   unloadable
-
+  protect_from_forgery except: [:index, :project, :sprint]
   # for index there's no @project
   # (eliminates the need of RbAllProjectsController)
   skip_before_filter :load_project, :authorize, :only => [:index]

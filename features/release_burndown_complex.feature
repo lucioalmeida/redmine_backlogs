@@ -8,12 +8,12 @@ Feature: Release burndown complex
       And no versions or issues exist
       And I am a product owner of the project
       And I have the following issue statuses available:
-        | name        | is_closed | is_default | default_done_ratio |
-        | New         |         0 |          1 |                    |
-        | In Progress |         0 |          0 |                    |
-        | Feedback    |         0 |          0 |                    |
-        | Accepted    |         1 |          0 |                    |
-        | Rejected    |         1 |          0 |                  1 |
+        | name        | is_closed | default_done_ratio |
+        | New         |         0 |                    |
+        | In Progress |         0 |                    |
+        | Feedback    |         0 |                    |
+        | Accepted    |         1 |                    |
+        | Rejected    |         1 |                  1 |
       And the current time is 2011-01-01 08:00:00
       And I have defined the following sprints:
         | name       | sprint_start_date | effective_date |

@@ -28,7 +28,7 @@ module Backlogs
 
       def available_custom_fields
         klass = self.class.respond_to?(:rb_sti_class) ? self.class.rb_sti_class : self.class
-        CustomField.find(:all, :conditions => "type = '#{klass.name}CustomField'", :order => 'position')
+        CustomField.where("type = '#{klass.name}CustomField'").order('position')
       end
 
       def journalized_update_attributes!(attribs)
@@ -62,10 +62,6 @@ module Backlogs
               #{options[:spacing]}
             end
 
-            def self.find_by_rank(r, options)
-              self.find(:first, options.merge(:order => '#{self.table_name}.position', :limit => 1, :offset => r - 1))
-            end
-
             before_create  :move_to_#{options[:default]}
           EOV
         end
@@ -87,11 +83,11 @@ module Backlogs
         end
 
         def first(options = {})
-          return self.class.find_by_position(self.class.minimum(:position, options))
+          return self.class.where(position: self.class.minimum(:position, options)).first
         end
 
         def last(options = {})
-          return self.class.find_by_position(self.class.maximum(:position, options))
+          return self.class.where(position: self.class.maximum(:position, options)).first
         end
 
         def higher_item(options={})
@@ -125,7 +121,7 @@ module Backlogs
             move_to_bottom
           else
             if (nxt.position - reference.position) < 2
-              self.class.connection.execute("update #{self.class.table_name} set position = position + #{self.class.list_spacing} where position >= #{nxt.position}")
+              RbStory.connection.execute("update #{self.class.table_name} set position = position + #{self.class.list_spacing} where position >= #{nxt.position}")
               nxt.position += self.class.list_spacing
             end
             self.position = (nxt.position + reference.position) / 2
@@ -138,17 +134,15 @@ module Backlogs
         #before means lower position
         def move_before(reference, options={})
           prev = reference.send(:higher_item_unscoped)
-
           if prev.blank?
             move_to_top
           else
             if (reference.position - prev.position) < 2
-              self.class.connection.execute("update #{self.class.table_name} set position = position - #{self.class.list_spacing} where position <= #{prev.position}")
+              RbStory.connection.execute("update #{self.class.table_name} set position = position - #{self.class.list_spacing} where position <= #{prev.position}")
               prev.position -= self.class.list_spacing
             end
             self.position = (reference.position + prev.position) / 2
           end
-
           list_commit
         end
 
@@ -166,7 +160,7 @@ module Backlogs
       end
 
       def list_commit
-        self.class.connection.execute("update #{self.class.table_name} set position = #{self.position} where id = #{self.id}") unless self.new_record?
+        RbStory.connection.execute("update #{self.class.table_name} set position = #{self.position} where id = #{self.id}") unless self.new_record?
         #FIXME now the cached lower/higher_item are wrong during this request. So are those from our old and new peers.
       end
 
@@ -176,7 +170,7 @@ module Backlogs
         options = options.dup
         Backlogs::ActiveRecord.add_condition(options, ["#{self.class.table_name}.position #{dir == :prev ? '<' : '>'} ?", self.position])
         options[:order] = "#{self.class.table_name}.position #{dir == :prev ? 'desc' : 'asc'}"
-        return self.class.find(:first, options)
+        return self.class.where(options[:conditions]).order(options[:order]).first
       end
 
     end

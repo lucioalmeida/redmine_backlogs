@@ -23,7 +23,7 @@
                            :format => 'js') %>">
   </script>
   <%# Usability: display default cursor if tasks cannot be dragged %>
-  <% unless User.current.allowed_to?(:update_tasks, @project) %> 
+  <% unless User.current.allowed_to?(:update_tasks, @project) %>
     <style type="text/css">
     #taskboard .issue{cursor:default;}
     </style>
@@ -128,7 +128,7 @@
       </td>
       <%- @statuses.each do |status| %>
       <td class="swimlane list <%= status.is_closed? ? 'closed' : '' %>" id="<%= story.id %>_<%= status.id %>" -rb-status-id="<%= status.id %>" -rb-project-id="<%= story.project.id %>">
-        <%= render :partial => "rb_tasks/task", :collection => story.descendants.select{|task| task.status.id==status.id} %>
+        <%= render :partial => "rb_tasks/task", :collection => story.descendants.select{|task| task.status.id==status.id}.sort_by{|task| task.position} %>
       </td>
       <%- end %>
     </tr>
@@ -155,7 +155,9 @@
     <%= users_assignable_options_for_select(@project.assignable_users) %>
   </select>
   <div id="task_template">
-    <%= render :partial => "rb_tasks/task", :object => RbTask.new %>
+    <% new_task = RbTask.new %>
+    <% new_task.safe_attributes = {}.deep_dup %>
+    <%= render :partial => "rb_tasks/task", :object => new_task %>
   </div>
   <div id="impediment_template">
     <%= render :partial => "rb_impediments/impediment", :object => RbTask.new %>

@@ -44,7 +44,7 @@ class RbTask < Issue
     if is_impediment and blocks and blocks.strip != ''
       begin
         first_blocked_id = blocks.split(/\D+/)[0].to_i
-        attribs['project_id'] = Issue.find_by_id(first_blocked_id).project_id if first_blocked_id
+        attribs['project_id'] = Issue.where(id: first_blocked_id).first.project_id if first_blocked_id
       rescue
       end
     end
@@ -58,7 +58,7 @@ class RbTask < Issue
 
     raise "Block list must be comma-separated list of task IDs" if is_impediment && !task.validate_blocks_list(blocks) # could we do that before save and integrate cross-project checks?
 
-    task.move_before params[:next] unless is_impediment # impediments are not hosted under a single parent, so you can't tree-order them
+    task.position!(params) unless is_impediment # impediments are not hosted under a single parent, so you can't tree-order them
     task.update_blocked_list blocks.split(/\D+/) if is_impediment
     task.time_entry_add(params)
 
@@ -70,13 +70,11 @@ class RbTask < Issue
   def self.find_all_updated_since(since, project_id, find_impediments = false, sprint_id = nil)
     #find all updated visible on taskboard - which may span projects.
     if sprint_id.nil?
-      find(:all,
-           :conditions => ["project_id = ? AND updated_on > ? AND tracker_id in (?) and parent_id IS #{ find_impediments ? '' : 'NOT' } NULL", project_id, Time.parse(since), tracker],
-           :order => "updated_on ASC")
+      where("project_id = ? AND updated_on > ? AND tracker_id in (?) and parent_id IS #{ find_impediments ? '' : 'NOT' } NULL", project_id, Time.parse(since), tracker).
+        order("updated_on ASC")
     else
-      find(:all,
-           :conditions => ["fixed_version_id = ? AND updated_on > ? AND tracker_id in (?) and parent_id IS #{ find_impediments ? '' : 'NOT' } NULL", sprint_id, Time.parse(since), tracker],
-           :order => "updated_on ASC")
+      where("fixed_version_id = ? AND updated_on > ? AND tracker_id in (?) and parent_id IS #{ find_impediments ? '' : 'NOT' } NULL", sprint_id, Time.parse(since), tracker).
+        order("updated_on ASC")
     end
   end
 
@@ -84,7 +82,6 @@ class RbTask < Issue
     time_entry_add(params)
 
     attribs = RbTask.rb_safe_attributes(params)
-
     # Auto assign task to current user when
     # 1. the task is not assigned to anyone yet
     # 2. task status changed (i.e. Updating task name or remaining hours won't assign task to user)
@@ -100,7 +97,7 @@ class RbTask < Issue
                           end
 
     if valid_relationships && result = self.journalized_update_attributes!(attribs)
-      move_before params[:next] unless is_impediment # impediments are not hosted under a single parent, so you can't tree-order them
+      position!(params) unless is_impediment # impediments are not hosted under a single parent, so you can't tree-order them
       update_blocked_list params[:blocks].split(/\D+/) if params[:blocks]
 
       if params.has_key?(:remaining_hours)
@@ -122,11 +119,11 @@ class RbTask < Issue
 
   def update_blocked_list(for_blocking)
     # Existing relationships not in for_blocking should be removed from the 'blocks' list
-    relations_from.find(:all, :conditions => "relation_type='blocks'").each{ |ir|
+    relations_from.where("relation_type='blocks'").each{ |ir|
       ir.destroy unless for_blocking.include?( ir[:issue_to_id] )
     }
 
-    already_blocking = relations_from.find(:all, :conditions => "relation_type='blocks'").map{|ir| ir.issue_to_id}
+    already_blocking = relations_from.where("relation_type='blocks'").map{|ir| ir.issue_to_id}
 
     # Non-existing relationships that are in for_blocking should be added to the 'blocks' list
     for_blocking.select{ |id| !already_blocking.include?(id) }.each{ |id|
@@ -147,13 +144,28 @@ class RbTask < Issue
   end
 
   # assumes the task is already under the same story as 'id'
-  def move_before(id)
-    id = nil if id.respond_to?('blank?') && id.blank?
-    if id.nil?
-      sib = self.siblings
-      move_to_right_of sib[-1].id if sib.any?
-    else
-      move_to_left_of id
+  # def move_before(id)
+  #   id = nil if id.respond_to?('blank?') && id.blank?
+  #   if id.nil?
+  #     sib = self.siblings
+  #     move_to_right_of sib[-1].id if sib.any?
+  #   else
+  #     move_to_left_of id
+  #   end
+  # end
+  def position!(params)
+    if params.include?('prev')
+      if params['prev'].blank?
+        self.move_to_top # move after 'prev'. Meaning no prev, we go at top
+      else
+        self.move_after(RbTask.find(params['prev']))
+      end
+    elsif params.include?('next')
+      if params['next'].blank?
+        self.move_to_bottom
+      else
+        self.move_before(RbTask.find(params['next']))
+      end
     end
   end
 

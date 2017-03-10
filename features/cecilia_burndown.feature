@@ -8,18 +8,18 @@ Feature: Cecilia Burndown
       And I am a scrum master of the project
       And I have deleted all existing issues
       And I have the following issue statuses available:
-        | name                  | is_closed | is_default | 
-        | New                   |         0 |          1 | 
-        | Accepted              |         0 |          0 | 
-        | Review                |         0 |          0 |                   
-        | Test                  |         0 |          0 |                    
-        | Closed                |         1 |          0 |                   
-        | Deferred              |         0 |          0 |                   
-        | Need more information |         0 |          0 |                  
-        | Invalid               |         1 |          0 |                  
-        | Rejected              |         1 |          0 |                 
-        | Approved              |         1 |          0 | 
-        | Implemented           |         1 |          0 |
+        | name                  | is_closed |
+        | New                   |         0 |
+        | Accepted              |         0 |
+        | Review                |         0 |
+        | Test                  |         0 |           
+        | Closed                |         1 |
+        | Deferred              |         0 |
+        | Need more information |         0 |
+        | Invalid               |         1 |
+        | Rejected              |         1 |
+        | Approved              |         1 |
+        | Implemented           |         1 |
       And the current time is 2012-11-20 08:00:00
 
       And I have defined the following stories in the product backlog:
